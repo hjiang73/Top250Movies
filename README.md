@@ -1,1 +1,2 @@
 # Top250Movies
+This is the home work of STAT 327, it is some data analysis of Top 250 films from Internet Movie Database website](http://www.imdb.com), I mainly use some web scrapping and pattern matching skills.
