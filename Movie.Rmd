@@ -1,0 +1,130 @@
+---
+title: "Movie"
+author: "Han Jiang"
+date: "March 17, 2016"
+output: html_document
+---
+
+At the bottom of the [Internet Movie Database website](http://www.imdb.com) there's a link to the [Top 250](http://www.imdb.com/chart/top). At the "Top 250" page there's a list of 250 movies, with a link to each movie. The first movie is [The Shawshank Redmption](http://www.imdb.com/title/tt0111161/?ref_=chttp_tt_1).
+
+With your browser on the "Top 250" page, you can do "right-click > view page source" (in Firefox or Chrome; in Safari, first do "Safari > Preferences > Advanced" and check "Show Develop menu in menu bar") to see the HTML code that creates the page. (You do not need to learn HTML for this homework.)
+
+Search in the HTML source page for "Shawshank", and you'll see that it occurs on line 675. Search for "Godfather", and you'll see that it occurs twice, on line 731 for "The Godfather" and on line 787 for "The Godfather: Part II". For each of these three lines, the preceding line contains a link, relative to the main IMDB URL, to that movie's page. Use grep() to figure out what small string is common to the 250 lines, like these three, that contain links to the top 250 movies.
+
+Notice that line 674 for "The Shawshank Redemption" includes the text "/title/tt0111161". Pasting this onto "http://www.imdb.com" gives "http://www.imdb.com/title/tt0111161", which is a link to the first movie's page. Adding "/fullcredits" gives "http://www.imdb.com/title/tt0111161/fullcredits", which is a link to the full cast and crew. Search this "fullcredits" page for "Produced" and you'll see that "The Shawshank Redemption" was produced by "Liz Glotter", "David V. Lester", and "Niki Marvin".
+
+Write code that does the following:
+
+* Use readLines() to read "http://www.imdb.com/chart/top" into a character string vector
++ Select the 250 lines containing links to the 250 movies
++ From these 250 lines, select the 250 strings like "/title/tt0111161" from which you can form links to the 250 movies
+* Create an empty list of producers, e.g. "producers = list()"
+* Read the "fullcredits" page of each movie
++ Strip out the title of the movie
++ Use readHTMLTable() to read all the tables into a list of dataframes; figure out which dataframe has the producers
++ Save the vector of producers in a list, doing something like "producers[[title]] = ...", where "..." is the vector of producers you found
+* Do "unlist(producers)" to convert your list of title / producer vector pairs into a named vector of producers.
++ Use table() to make a table of counts from this vector
++ Display the 5 producers who produced the most movies from among these 250
+
+```{r}
+Top <- "http://www.imdb.com/chart/top"
+line<-  readLines(Top)
+movie <- grep(pattern="\\s<a href=\"/title/.*/.*", x = line, value=TRUE)
+
+string <- sub(x = movie, pattern=".*(/title/.*)/.*", replace = "\\1")
+
+link <- paste0("http://www.imdb.com",string)
+
+
+producers = list()
+
+titlesline <- grep(pattern = "title=.*>.*</a>",x = line, value= TRUE)[5:254]
+title <- sub(x = titlesline,pattern = "title=.*>(.*)</a>",replace = "\\1")
+
+
+for (i in 1:250){
+  link3 <- paste0("http://www.imdb.com",string[i],"fullcredits")
+  tables <- readHTMLTable(link3)
+  producers[[title[i]]] <- as.vector(tables[[4]][,1])
+}
+print(producers)
+producervector = unlist(producers)
+count = table(unlist(producers))
+sort(count,decreasing = TRUE)[1:5]
+```
+
+# Part 4: Extra Credit (not required)
+
+* Collect Year, Director, Rating, Number of Votes and Cast (first billed only)
+* For each actor, count how many times he or she starred in a Top 250 Movie. Show the 10 actors/actresses that starred in the most movies among the Top 250. Show the 10 actors/actresses that starred in movies among the Top 250 with the highest mean rating.
+* For each director, count how many times he or she directed a Top 250 Movie. Show the 10 directors that directed the most movies among the Top 250. Show the 10 directors that directed movies among the Top 250 with the highest mean rating.
+* Show the 10 most frequent Actor-Director collaborations among the Top 250 Movies. What's the average rating for those collaborations?
+* Are ratings influenced by year? In what way? Provide a P-value using linear regression. Are the assumptions of linear regression violated? If so, what's the impact in your P-value estimate?
+* Do people vote more often for recent movies? Provide a P-value using linear regression. Are the assumptions of linear regression violated? If so, what's the impact in your P-value estimate?
+* In light of the previous question, do you think the number of votes influences the rating? Create an analysis of variance table for the ratings, considering year, votes and the interaction of year and votes. Explain what the interaction means.
+```{r}
+years = NULL
+directors = list()
+
+for (i in 1:250){
+  link3 <- paste0("http://www.imdb.com",string[i],"/fullcredits")
+  line3 <- readLines(link3)
+  yearline <- grep(pattern = ".*<title>.*(.*) - IMDb</title>",x = line3, value= TRUE)
+  year <- sub(x = yearline, pattern = ".*<title>.*\\((.*)\\) - Full Cast &amp; Crew - IMDb</title>",replace = "\\1")
+  years[i]=as.numeric(year)
+  
+  tables <- readHTMLTable(link3)
+  directors[[title[i]]] <- as.vector(tables[[1]][,1])
+  
+}
+
+rating=NULL
+voters=NULL
+for (i in 1:250){
+  line4 <- readLines(link[i])
+  ratingline <- grep( pattern = ".*Users rated this .* - click stars to rate.*",x = line4, value= TRUE)[1]
+  rating[i]<- as.numeric(sub(x=ratingline,pattern=".*Users rated this (.*)\\/.*",replace = "\\1"))
+  votersc<-sub(x=ratingline,pattern=".*Users rated this .* \\((.*) votes\\).*",replace = "\\1")
+  voters[i]<- as.numeric(gsub(x = votersc, pattern=",", replace = ""))
+}
+
+##Collect Year, Director, Rating, Number of Votes and Cast (first billed only)
+##Directcor and cast are lists as producers:directors and casts
+##
+df <- data.frame(title,years,rating,voters)
+colnames(df) <- c("Title", "Year","Rating","Number of Votes")
+print(df)
+
+##For each actor, count how many times he or she starred in a Top 250 Movie. Show the 10 actors/actresses that starred in the most movies among the Top 250. Show the 10 actors/actresses that starred in movies among the Top 250 with the highest mean rating.
+
+##For each director, count how many times he or she directed a Top 250 Movie. Show the 10 directors that directed the most movies among the Top 250. Show the 10 directors that directed movies among the Top 250 with the highest mean rating.
+count2 = table(unlist(directors))
+sort(count2,decreasing = TRUE)[1:10]
+
+##Are ratings influenced by year? In what way? Provide a P-value using linear regression. Are the assumptions of linear regression violated? If so, what's the impact in your P-value estimate?
+##ratings are not influenced by year so much.
+model1 = lm(rating~years, data=df)
+plot(model1)
+summary(model1)
+##time series data,it violates no-auto correlation assumption,it shows correlation, but there may be no real relationship between them other than that they happened to both be changing steadily during that time period. P-value will decrease.
+
+
+##Do people vote more often for recent movies? Provide a P-value using linear regression. Are the assumptions of linear regression violated? If so, what's the impact in your P-value estimate?
+##Yes,people vote more often for recent movies.
+model2 = lm(voters~years, data=df)
+plot(model2)
+summary(model2)
+##p-value: < 2.2e-16
+##time series data,it violates no-auto correlation assumption,it shows correlation, but there may be no real relationship between them other than that they happened to both be changing steadily during that time period. P-value will decrease.
+
+
+##In light of the previous question, do you think the number of votes influences the rating? Create an analysis of variance table for the ratings, considering year, votes and the interaction of year and votes. Explain what the interaction means.
+aov= aov(rating~years+ voters+ years *voters  ,data=df)
+##the number of votes influences the rating
+## the interaction means that the effect of number of votes on votes is different for different year, since year will affect the number of votes.
+```
+
+
+
+
